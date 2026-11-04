@@ -41,7 +41,7 @@
             <!--Barra de pesquisa-->
             <div class="row mb-3">
                 <div class="col-md-6">
-                    <input type="text" class="form-control" id="pesquisaID" placeholder="Pesquisar colaborador por ID">
+                    <input type="text" class="form-control" id="pesquisaNome" placeholder="Pesquisar colaborador por nome">
                 </div>
             </div>
                 <!--Tabela-->
@@ -84,26 +84,28 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <!--Script filtro em tempo real pesquisa ID-->
-    <script>
-        document.getElementById('pesquisaID').addEventListener('keyup', function(){
-            var termo = this.value.toLowerCase();
-            var linhas = document.querySelectorAll('table tbody tr');
+ 
+<script>
+    document.getElementById('pesquisaNome').addEventListener('keyup', function(){
+        var termo = this.value.toLowerCase();
+        var linhas = document.querySelectorAll('table tbody tr');
 
-            linhas.forEach(function(linha){
-                //celula ID, primeira coluna, indice 0
-                var colunaID = linha.getElementsByTagName('td')[0];
+        linhas.forEach(function(linha){
+            // Célula Nome é a segunda coluna, índice 1 (0 é o ID, 1 é o Nome)
+            var colunaNome = linha.getElementsByTagName('td')[1];
 
-                if (colunaID) {
-                    var textoID = colunaID.textContent.toLowerCase();
-                    //Se o ID contiver o texto digitado ou o campo estiver vazio
-                    if (textoID.indexOf(termo) > -1 || termo === ''){
-                        linha.style.display = '';
-                    } else {
-                        linha.style.display = 'none';
-                    }
+            if (colunaNome) {
+                var textoNome = colunaNome.textContent.toLowerCase();
+                
+                // Se o nome contiver o texto digitado ou o campo estiver vazio
+                if (textoNome.indexOf(termo) > -1 || termo === ''){
+                    linha.style.display = '';
+                } else {
+                    linha.style.display = 'none';
                 }
-            });
+            }
         });
-    </script>
+    });
+</script>
 </body>
 </html>

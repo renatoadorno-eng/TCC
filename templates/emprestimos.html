@@ -9,10 +9,13 @@
 <body class="bg-light">
 
     <div class="container py-5">
-        <!-- Título e Botão Voltar -->
+        <!-- Título e Botões Superiores (Voltar e Relatórios) -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="fw-bold text-dark">EMPRÉSTIMO DE EQUIPAMENTO</h2>
-            <a href="/" class="btn btn-secondary">Voltar ao Menu</a>
+            <div class="d-flex gap-2">
+                <a href="/relatorios" class="btn btn-outline-primary">Relatórios</a>
+                <a href="/" class="btn btn-secondary">Voltar ao Menu</a>
+            </div>
         </div>
 
         <!-- Barra Superior: Pesquisa e Botão Novo -->
@@ -44,19 +47,30 @@
                             <tr>
                                 <td>{{ e.ID }}</td>
                                 <td>{{ e.Colaborador }}</td>
-                                <td>{{ e.Data }}</td>
+                                <td>
+                                    {% if e.Data %}
+                                        {{ e.Data.strftime('%d/%m/%Y %H:%M') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                
+                                    <!-- Exibe o crachá de acordo com o status atual -->
                                 <td>
                                     {% if e.Situacao == 1 or e.Situacao == True %}
                                         <span class="badge bg-success">Ativo</span>
                                     {% else %}
                                         <span class="badge bg-secondary">Finalizado</span>
                                     {% endif %}
+                
                                 </td>
                                 <td>
-                                    <!-- Ações: Visualizar e Finalizar -->
-                                    <a href="/emprestimos/visualizar/{{ e.ID }}" class="btn btn-info btn-sm text-white">VIZUALIZAR</a>
+                                    <!-- Ações: Visualizar e Finalizar/Atualizar -->
+                                    <a href="/emprestimos/visualizar/{{ e.ID }}" class="btn btn-info btn-sm text-white">VISUALIZAR</a>
+                                    
+                                    <!-- Exibe o botão de finalizar/atualizar apenas se estiver em aberto (Situacao == 1) -->
                                     {% if e.Situacao == 1 or e.Situacao == True %}
-                                        <a href="/emprestimos/finalizar/{{ e.ID }}" class="btn btn-warning btn-sm" onclick="return confirm('Deseja finalizar este empréstimo?')">FINALIZAR</a>
+                                        <a href="/emprestimos/finalizar/{{ e.ID }}" class="btn btn-warning btn-sm">FINALIZAR</a>
                                     {% endif %}
                                 </td>
                             </tr>

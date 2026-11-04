@@ -13,8 +13,8 @@
             <div class="col-md-6">
                 <div class="card shadow-sm border-0 p-4">
                     <h3 class="fw-bold text-primary mb-4">Registar Novo Empréstimo</h3>
-                    
-                    <form action="/emprestimos/novo" method="POST">
+
+                    <form action="/emprestimos/novo" method="POST" onsubmit="return validarFormulario()">
                         <!-- Selecionar Colaborador -->
                         <div class="mb-3">
                             <label for="id_colaborador" class="form-label">Colaborador</label>
@@ -32,7 +32,7 @@
                             <select class="form-select" id="id_equipamento" name="id_equipamento" required>
                                 <option value="" disabled selected>Selecione o equipamento...</option>
                                 {% for eq in equipamentos %}
-                                    <option value="{{ eq.ID }}">{{ eq.Nome }} (Estoque: {{ eq.QTD_estoque }})</option>
+                                    <option value="{{ eq.ID }}" data-estoque="{{ eq.QTD_estoque }}">{{ eq.Nome }} (Estoque: {{ eq.QTD_estoque }})</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -41,6 +41,21 @@
                         <div class="mb-3">
                             <label for="quantidade" class="form-label">Quantidade</label>
                             <input type="number" class="form-control" id="quantidade" name="quantidade" min="1" value="1" required>
+                        </div>
+
+                        <!-- Data Prevista de Devolução (Envolta em uma div para ocultar se for Fornecido) -->
+                        <div class="mb-3" id="blocoDataPrevista">
+                            <label for="data_prevista_devolucao" class="form-label">Data Prevista de Devolução</label>
+                            <input type="datetime-local" class="form-control" id="data_prevista_devolucao" name="data_prevista_devolucao">
+                        </div>
+
+                        <!-- Status Inicial -->
+                        <div class="mb-3">
+                            <label for="status" class="form-label">Status Inicial</label>
+                            <select class="form-select" id="status" name="status" required onchange="controlarCampoData()">
+                                <option value="Emprestado" selected>Emprestado</option>
+                                <option value="Fornecido">Fornecido</option>
+                            </select>
                         </div>
 
                         <!-- Botões -->
@@ -55,5 +70,51 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+   <script>
+        function controlarCampoData() {
+            const statusSelect = document.getElementById('status').value;
+            const blocoData = document.getElementById('blocoDataPrevista');
+            const inputData = document.getElementById('data_prevista_devolucao');
+
+            if (statusSelect === 'Fornecido') {
+                blocoData.style.display = 'none';
+                inputData.removeAttribute('required');
+                inputData.value = '';
+            } else {
+                blocoData.style.display = 'block';
+                inputData.setAttribute('required', 'required');
+            }
+        }
+
+        function validarFormulario() {
+            const selectEquip = document.getElementById('id_equipamento');
+            const qtdInput = document.getElementById('quantidade');
+            const statusSelect = document.getElementById('status').value;
+            
+            const opcaoSelecionada = selectEquip.options[selectEquip.selectedIndex];
+            const estoque = parseInt(opcaoSelecionada.getAttribute('data-estoque')) || 0;
+            const quantidade = parseInt(qtdInput.value) || 0;
+
+            if (quantidade > estoque) {
+                alert(`Erro: Não é possível emprestar ${quantidade} unidade(s). O estoque disponível é de apenas ${estoque} unidade(s).`);
+                return false;
+            }
+
+            // Validar data apenas se o status for Emprestado
+            if (statusSelect === 'Emprestado') {
+                const dataPrevistaInput = document.getElementById('data_prevista_devolucao').value;
+                const dataPrevista = new Date(dataPrevistaInput);
+                const agora = new Date();
+
+                if (dataPrevista <= agora) {
+                    alert('Erro: A data prevista para devolução deve ser posterior à data e hora atuais.');
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+    </script>
 </body>
 </html>

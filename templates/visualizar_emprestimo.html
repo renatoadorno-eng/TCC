@@ -1,77 +1,122 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comprovante de Empréstimo</title>
-    <!-- Bootstrap 5 CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Detalhes do Empréstimo #{{ emprestimo.ID }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body class="bg-light d-flex justify-content-center align-items-center vh-100 m-0">
+<body class="bg-light">
 
-    <div class="card shadow-sm p-4" style="width: 450px; border-radius: 12px;">
-        <!-- Cabeçalho do Ticket -->
-        <div class="text-center border-bottom pb-3 mb-3">
-            <h4 class="fw-bold text-primary mb-1">Comprovante de Empréstimo</h4>
-            <span class="text-muted small">Sistema de Controle de EPIs</span>
-        </div>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow-sm border-0 p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h3 class="fw-bold text-primary m-0">Detalhes do Empréstimo #{{ emprestimo.ID }}</h3>
+                        <a href="/emprestimos" class="btn btn-secondary btn-sm">Voltar à Listagem</a>
+                    </div>
 
-        <!-- Informações Principais -->
-        <div class="mb-3">
-            <div class="d-flex justify-content-between mb-2">
-                <span class="fw-semibold text-secondary">ID Empréstimo:</span>
-                <span class="fw-bold">#{{ emprestimo['ID'] }}</span>
-            </div>
-            <div class="d-flex justify-content-between mb-2">
-                <span class="fw-semibold text-secondary">Funcionário:</span>
-                <span class="text-end">{{ emprestimo['Colaborador'] }} <small class="text-muted">(ID: {{ emprestimo['IdColaborador'] }})</small></span>
-            </div>
-            <div class="d-flex justify-content-between mb-2">
-                <span class="fw-semibold text-secondary">Setor:</span>
-                <span>{{ emprestimo['Setor'] }}</span>
-            </div>
-            <div class="d-flex justify-content-between mb-2">
-                <span class="fw-semibold text-secondary">Data/Hora Retirada:</span>
-                <span>{{ emprestimo['Data'] }}</span>
-            </div>
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="fw-semibold text-secondary">Situação:</span>
-                {% if emprestimo['Situacao'] == 1 %}
-                    <span class="badge bg-success">Ativo (Em uso)</span>
-                {% else %}
-                    <span class="badge bg-secondary">Finalizado (Devolvido)</span>
-                {% endif %}
-            </div>
-        </div>
+                    <!-- Informações Gerais -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted fw-bold mb-0">Colaborador:</label>
+                            <p class="fs-5 text-dark mb-0">{{ emprestimo.Colaborador }} <small class="text-muted">({{ emprestimo.Setor }})</small></p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted fw-bold mb-0">Status:</label>
+                            <p class="mb-0">
+                                {% if emprestimo.status == 'Emprestado' %}
+                                    <span class="badge bg-primary fs-6">Emprestado</span>
+                                {% elif emprestimo.status == 'Fornecido' %}
+                                    <span class="badge bg-info text-dark fs-6">Fornecido</span>
+                                {% elif emprestimo.status == 'Devolvido' %}
+                                    <span class="badge bg-success fs-6">Devolvido</span>
+                                {% elif emprestimo.status == 'Danificado' %}
+                                    <span class="badge bg-warning text-dark fs-6">Danificado</span>
+                                {% elif emprestimo.status == 'Perdido' %}
+                                    <span class="badge bg-danger fs-6">Perdido</span>
+                                {% else %}
+                                    <span class="badge bg-secondary fs-6">{{ emprestimo.status }}</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted fw-bold mb-0">Data do Empréstimo:</label>
+                            <p class="fs-6 text-dark mb-0">
+                                {% if emprestimo.Data %}
+                                    {{ emprestimo.Data.strftime('%d/%m/%Y %H:%M') }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </p>
+                        </div>
 
-        <!-- Tabela de Equipamentos -->
-        <h6 class="fw-bold text-dark mt-4 mb-2">Equipamentos Retirados:</h6>
-        <div class="table-responsive">
-            <table class="table table-sm table-bordered mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Equipamento</th>
-                        <th class="text-center" style="width: 80px;">Qtd</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in itens %}
-                    <tr>
-                        <td>{{ item['Nome'] }}</td>
-                        <td class="text-center">{{ item['Quantidade'] }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                        <!-- Condicional para exibir a Data Prevista ou Efetiva -->
+                        <div class="col-md-6">
+                            {% if emprestimo.Situacao == 1 %}
+                                <label class="form-label text-muted fw-bold mb-0">Data Prevista de Devolução:</label>
+                                <p class="fs-6 text-primary fw-semibold mb-0">
+                                    {% if emprestimo.data_prevista_devolucao %}
+                                        {{ emprestimo.data_prevista_devolucao.strftime('%d/%m/%Y %H:%M') }}
+                                    {% else %}
+                                        Não informada
+                                    {% endif %}
+                                </p>
+                            {% else %}
+                                <label class="form-label text-muted fw-bold mb-0">Data Efetiva de Devolução:</label>
+                                <p class="fs-6 text-success fw-semibold mb-0">
+                                    {% if emprestimo.data_efetiva_devolucao %}
+                                        {{ emprestimo.data_efetiva_devolucao.strftime('%d/%m/%Y %H:%M') }}
+                                    {% else %}
+                                        Não informada
+                                    {% endif %}
+                                </p>
+                            {% endif %}
+                        </div>
 
-        <!-- Botão de Retorno -->
-        <div class="mt-4">
-            <a href="{{ url_for('emprestimos') }}" class="btn btn-primary w-100">Voltar à Lista</a>
+                        {% if emprestimo.observacao_devolucao %}
+                        <div class="col-12">
+                            <label class="form-label text-muted fw-bold mb-0">Observação da Devolução:</label>
+                            <p class="fs-6 text-dark bg-light p-2 rounded border mb-0">{{ emprestimo.observacao_devolucao }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Tabela de Itens Emprestados -->
+                    <h5 class="fw-bold text-secondary mb-3">Equipamentos Solicitados</h5>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID EPI</th>
+                                    <th>Equipamento (EPI)</th>
+                                    <th class="text-center">Quantidade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if itens %}
+                                    {% for item in itens %}
+                                    <tr>
+                                        <td>{{ item.IdEquipamento }}</td>
+                                        <td>{{ item.Nome }}</td>
+                                        <td class="text-center">{{ item.Quantidade }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted">Nenhum equipamento retornado para este registro.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Bootstrap 5 JS Bundle (Opcional) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
