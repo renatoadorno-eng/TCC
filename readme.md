@@ -31,8 +31,7 @@ Certifique-se de ter instalado:
 
 ### 2. Clonar o repositório
 ```bash
-git clone [https://github.com/renatoadorno-eng/sistema-controle-epi.git](https://github.com/renatoadorno-eng/sistema-controle-epi.git)
-cd sistema-controle-epi
+git clone https://github.com/renatoadorno-eng/TCC.git
 ````
 ### 3. Configurar o ambiente virtual
   ```
