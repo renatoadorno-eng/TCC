@@ -1,93 +1,124 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime
-import pymysql
-# ... suas outras importações e conexao ...
+import pymysql, os
 
+
+# Inicializa a aplicação web utilizando o Flask
 app = Flask(__name__)
-app.secret_key = 'sua_chave_secreta_super_segura_aqui'  # Necessário para usar session e flash messages
 
-import os
-
+# Configura a chave secreta buscando na variável de ambiente do sistema ou usando um valor padrão para testes locais
+app.secret_key = os.environ.get('SECRET_KEY', 'sua_chave_secreta_super_segura_aqui')
+# função estabelece conexão com base de dados
 def conectar_banco():
     return pymysql.connect(
+    
         host=os.environ.get('DB_HOST', 'localhost'),
         user=os.environ.get('DB_USER', 'root'),
         password=os.environ.get('DB_PASS', '1234'),
         database=os.environ.get('DB_NAME', 'sistema_epi'),
+        # Configura o cursor para retornar os resultados das consultas em formato de dicionário 
         cursorclass=pymysql.cursors.DictCursor
     )
 
+# Rota e função de login
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Verifica se o usuário enviou o formulário de login
     if request.method == 'POST':
+        # Captura o e-mail preenchido no formulário
         email = request.form['email']
+        # Captura a senha preenchida no formulário
         senha = request.form['senha']
 
+        # Abre a conexão com o banco de dados
         conexao = conectar_banco()
         try:
+            # Cria um cursor para executar comandos SQL
             with conexao.cursor() as cursor:
+                # instrução SQL para procurar o usuário pelo e-mail
                 sql = "SELECT * FROM Usuario WHERE Email = %s"
+                # query passando o email
                 cursor.execute(sql, (email,))
+                # primeiro registro encontrado no banco
                 usuario = cursor.fetchone()
 
-                # Verifica se o usuário existe e se a senha confere com o hash
+                # Verifica se o usuário existe na base e se a senha informada confere com o hash
                 if usuario and check_password_hash(usuario['Senha'], senha):
+                    # Salva o ID do usuário na sessão ativa do navegador
                     session['usuario_id'] = usuario['ID']
+                    # Salva o nome do usuário na sessão ativa
                     session['usuario_nome'] = usuario['Nome']
+                    # Cria uma mensagem flash informando o sucesso
                     flash('Login realizado com sucesso!', 'success')
-                    return redirect(url_for('index')) # Redireciona para a página principal
+                    # Redireciona o usuário para a página inicial
+                    return redirect(url_for('index')) 
                 else:
+                    # Se falhar, exibe uma mensagem de erro na tela de login
                     flash('E-mail ou senha incorretos.', 'danger')
         finally:
+            # conexão com o banco de dados será fechada independentemente de erros
             conexao.close()
 
+    # Se for um acesso GET, renderiza e exibe a página HTML de login
     return render_template('login.html')
 
+# Verifica se o usuário pode acessar as rotas
 @app.before_request
 def verificar_autenticacao():
-    # Rotas liberadas sem necessidade de estar logado
+    # rotas que não exigem que o usuário esteja logado
     rotas_livres = ['login', 'static']
     
-    # Se o usuário não está logado e tenta acessar uma rota protegida
+    # Se tenta acessar rota sem id de usuário válido, volta pra tela de login
     if 'usuario_id' not in session and request.endpoint not in rotas_livres:
         return redirect(url_for('login'))
 
+# Define a rota para encerrar a sessão do usuário
 @app.route('/logout')
 def logout():
+    # Limpa todos os dados armazenados na sessão atual
     session.clear()
+    # Exibe um aviso informando que saiu do sistema
     flash('Você saiu do sistema.', 'info')
+    # Redireciona para a tela de login
     return redirect(url_for('login'))
 
+# Define a rota raiz do sistema 
 @app.route('/')
 def index():
     usuario = None
+    # Verifica se há um usuário autenticado na sessão
     if 'usuario_id' in session:
         conexao = conectar_banco()
         try:
             with conexao.cursor() as cursor:
+                # Busca os dados do usuário logado no banco de dados
                 cursor.execute("SELECT * FROM Usuario WHERE ID = %s", (session['usuario_id'],))
                 usuario = cursor.fetchone()
         finally:
             conexao.close()
             
+    # Renderiza a página principal enviando os dados do usuário logado
     return render_template('index.html', usuario=usuario)
 
+# Define a rota para gerenciamento de colaboradores (listagem GET e cadastro POST)
 @app.route('/colaboradores', methods=['GET', 'POST'])
 def colaboradores():
     conexao = conectar_banco()
     try:
-        # Se o usuário enviou o formulário (POST)
+        # Se os dados foram enviados via formulário (POST), realiza o cadastro
         if request.method == 'POST':
             nome = request.form['nome']
             setor = request.form['setor']
 
             with conexao.cursor() as cursor:
                 try:
+                    # Insere o novo colaborador definindo o campo 'ativo' como 1 (Medida necessária para suportar escolhas de design que permita apagar usuários sem quebrar a lista de empréstimos)
                     cursor.execute("INSERT INTO Colaborador (Nome, Setor, ativo) VALUES (%s, %s, 1)", (nome, setor))
+                    # Confirma a gravação dos dados no banco
                     conexao.commit()
                     
-                    # Alerta nativo de SUCESSO
+                    # alerta de sucesso e redirecionamento
                     return """
                         <script>
                             alert('Colaborador cadastrado com sucesso!');
@@ -95,8 +126,9 @@ def colaboradores():
                         </script>
                     """
                 except Exception as e:
+                    # Em caso de erro, desfaz a alteração no banco
                     conexao.rollback()
-                    # Alerta nativo de ERRO
+                    # alerta indicando o erro ocorrido
                     return f"""
                         <script>
                             alert('Erro ao cadastrar colaborador: {e}');
@@ -104,7 +136,7 @@ def colaboradores():
                         </script>
                     """
 
-        # Se for apenas acesso (GET), busca apenas colaboradores ativos
+        # Se for uma requisição GET, busca e lista apenas os colaboradores ativos no sistema
         with conexao.cursor() as cursor:
             cursor.execute("SELECT * FROM Colaborador WHERE ativo = 1")
             lista_colaboradores = cursor.fetchall()
@@ -112,10 +144,12 @@ def colaboradores():
     finally:
         conexao.close()
 
+# Define a rota para editar os dados de um colaborador
 @app.route('/colaboradores/editar/<int:id>', methods=['GET', 'POST'])
 def editar_colaborador(id):
     conexao = conectar_banco()
     try:
+        # Se for POST, atualiza os dados alterados no formulário
         if request.method == 'POST':
             nome = request.form['nome']
             setor = request.form['setor']
@@ -126,7 +160,6 @@ def editar_colaborador(id):
                     cursor.execute(sql, (nome, setor, id))
                     conexao.commit()
                     
-                    # Alerta nativo de SUCESSO ao editar
                     return """
                         <script>
                             alert('Colaborador atualizado com sucesso!');
@@ -135,7 +168,6 @@ def editar_colaborador(id):
                     """
                 except Exception as e:
                     conexao.rollback()
-                    # Alerta nativo de ERRO ao editar
                     return f"""
                         <script>
                             alert('Erro ao atualizar colaborador: {e}');
@@ -143,7 +175,7 @@ def editar_colaborador(id):
                         </script>
                     """
 
-        # Se for GET, busca dados atuais para preencher formulário de edição
+        # Se for GET, busca as informações atuais do colaborador
         with conexao.cursor() as cursor:
             sql = "SELECT * FROM Colaborador WHERE ID = %s"
             cursor.execute(sql, (id,))
@@ -153,12 +185,13 @@ def editar_colaborador(id):
     finally:
         conexao.close()
 
+# Define a rota para a exclusão lógica de um colaborador
 @app.route('/colaboradores/excluir/<int:id>', methods=['GET'])
 def excluir_colaborador(id):
     conexao = conectar_banco()
     try:
         with conexao.cursor() as cursor:
-            # Exclusão lógica (inativação) para preservar o histórico de empréstimos
+            # Realiza uma exclusão lógica atualizando o status 'ativo' para 0, preservando o histórico de empréstimos
             sql = "UPDATE Colaborador SET ativo = 0 WHERE ID = %s"
             cursor.execute(sql, (id,))
             conexao.commit()
@@ -172,11 +205,12 @@ def excluir_colaborador(id):
     finally:
         conexao.close()
 
+# Define a rota para o gerenciamento de equipamentos
 @app.route('/equipamentos', methods=['GET', 'POST'])
 def equipamentos():
     conexao = conectar_banco()
     try:
-        # Se o utilizador enviou o formulário de cadastro (POST)
+        # Se POST, cadastra o novo equipamento
         if request.method == 'POST':
             nome = request.form['nome']
             qtd_estoque = request.form['qtd_estoque']
@@ -186,7 +220,6 @@ def equipamentos():
                     cursor.execute("INSERT INTO Equipamento (Nome, QTD_estoque, ativo) VALUES (%s, %s, 1)", (nome, qtd_estoque))
                     conexao.commit()
                     
-                    # Alerta nativo de SUCESSO ao cadastrar equipamento
                     return """
                         <script>
                             alert('Equipamento cadastrado com sucesso!');
@@ -195,7 +228,6 @@ def equipamentos():
                     """
                 except Exception as e:
                     conexao.rollback()
-                    # Alerta nativo de ERRO ao cadastrar equipamento
                     return f"""
                         <script>
                             alert('Erro ao cadastrar equipamento: {e}');
@@ -203,7 +235,7 @@ def equipamentos():
                         </script>
                     """
 
-        # Se for apenas acesso (GET), busca apenas equipamentos ativos
+        # Se for GET, busca e exibe apenas os equipamentos ativos
         with conexao.cursor() as cursor:
             cursor.execute("SELECT * FROM Equipamento WHERE ativo = 1")
             lista_equipamentos = cursor.fetchall()
@@ -211,7 +243,7 @@ def equipamentos():
     finally:
         conexao.close()
 
-
+# Define a rota para editar um equipamento
 @app.route('/equipamentos/editar/<int:id>', methods=['GET', 'POST'])
 def editar_equipamento(id):
     conexao = conectar_banco()
@@ -226,7 +258,6 @@ def editar_equipamento(id):
                     cursor.execute(sql, (nome, qtd_estoque, id))
                     conexao.commit()
                     
-                    # Alerta nativo de SUCESSO ao editar equipamento
                     return """
                         <script>
                             alert('Equipamento atualizado com sucesso!');
@@ -235,7 +266,6 @@ def editar_equipamento(id):
                     """
                 except Exception as e:
                     conexao.rollback()
-                    # Alerta nativo de ERRO ao editar equipamento
                     return f"""
                         <script>
                             alert('Erro ao atualizar equipamento: {e}');
@@ -243,7 +273,7 @@ def editar_equipamento(id):
                         </script>
                     """
         
-        # Se for GET, busca dados atuais para preencher o formulário de edição
+        # Se for GET, recupera os dados do equipamento para exibir no formulário de edição
         with conexao.cursor() as cursor:
             sql = "SELECT * FROM Equipamento WHERE ID = %s"
             cursor.execute(sql, (id,))
@@ -253,12 +283,13 @@ def editar_equipamento(id):
     finally:
         conexao.close()
 
+# Define a rota para inativar um equipamento
 @app.route('/equipamentos/excluir/<int:id>', methods=['GET'])
 def exlcuir_equipamento(id):
     conexao = conectar_banco()
     try:
         with conexao.cursor() as cursor:
-            # Exclusão lógica (inativação) do equipamento para preservar os registos da tabela 'contem'
+            # Inativa o equipamento (ativo = 0) mantendo integridade com a tabela de histórico de empréstimos
             sql = "UPDATE Equipamento SET ativo = 0 WHERE ID = %s"
             cursor.execute(sql, (id,))
             conexao.commit()
@@ -272,11 +303,13 @@ def exlcuir_equipamento(id):
     finally:
         conexao.close()
 
+# Define a rota para listar todos os empréstimos registrados no sistema
 @app.route('/emprestimos')
 def emprestimos():
     conexao = conectar_banco()
     try:
         with conexao.cursor() as cursor:
+            # Executa uma consulta unindo a tabela de Empréstimos com Colaboradores para exibir os nomes
             sql = """
                 SELECT e.ID, e.Data, e.Situacao, e.status, c.Nome AS Colaborador 
                 FROM Emprestimo e 
@@ -289,25 +322,27 @@ def emprestimos():
     finally:
         conexao.close()
 
+# Define a rota para registrar um novo empréstimo
 @app.route('/emprestimos/novo', methods=['GET', 'POST'])
 def novo_emprestimo():
     conexao = conectar_banco()
     try:
         if request.method == 'POST':
+            # Capta os dados enviados pelo formulário
             id_colaborador = request.form['id_colaborador']
             id_equipamento = request.form['id_equipamento']
             quantidade = int(request.form['quantidade'])
             status = request.form['status']
 
-            # Se for 'Fornecido', não exige data prevista. Se for 'Emprestado', valida a data.
+            # Verifica o tipo de operação, se for fornecimento, não exige data de devolução e finaliza a situação
             if status == 'Fornecido':
                 data_prevista_str = None
-                situacao = 0  # Já nasce finalizado, pois não há devolução
+                situacao = 0  
             else:
                 data_prevista_str = request.form['data_prevista_devolucao']
-                situacao = 1  # Em aberto
+                situacao = 1  # Mantém em aberto
                 
-                # Validação no backend: Data prevista deve ser posterior à data/hora atual
+                # Converte e valida se a data de devolução prevista é posterior ao momento atual
                 data_prevista = datetime.strptime(data_prevista_str, '%Y-%m-%dT%H:%M')
                 agora = datetime.now()
 
@@ -320,10 +355,11 @@ def novo_emprestimo():
                     """
 
             with conexao.cursor() as cursor:
-                # 1. Verificar estoque disponível
+                # Consulta o estoque e o nome do equipamento selecionado
                 cursor.execute("SELECT QTD_estoque, Nome FROM Equipamento WHERE ID = %s", (id_equipamento,))
                 equipamento = cursor.fetchone()
 
+                # Valida se há estoque suficiente para cobrir a quantidade solicitada
                 if not equipamento or equipamento['QTD_estoque'] < quantidade:
                     disponivel = equipamento['QTD_estoque'] if equipamento else 0
                     nome_epi = equipamento['Nome'] if equipamento else 'EPI'
@@ -335,19 +371,20 @@ def novo_emprestimo():
                     """
 
                 try:
-                    # 2. Registar o empréstimo/fornecimento
+                    # Insere o registro principal do empréstimo na tabela 'Emprestimo'
                     sql_emp = """
                         INSERT INTO Emprestimo (Data, idColaborador, Situacao, data_prevista_devolucao, status) 
                         VALUES (NOW(), %s, %s, %s, %s)
                     """
                     cursor.execute(sql_emp, (id_colaborador, situacao, data_prevista_str, status))
+                    # Captura o ID gerado para este novo empréstimo
                     id_emprestimo = cursor.lastrowid
 
-                    # 3. Vincular o equipamento na tabela contem
+                    # Associa o EPI e a quantidade na tabela intermediária 'contem'
                     sql_contem = "INSERT INTO contem (idEmprestimo, idEquipamento, Quantidade) VALUES (%s, %s, %s)"
                     cursor.execute(sql_contem, (id_emprestimo, id_equipamento, quantidade))
                     
-                    # 4. Atualizar o estoque
+                    # Atualiza o estoque subtraindo a quantidade emprestada
                     sql_estoque = "UPDATE Equipamento SET QTD_estoque = QTD_estoque - %s WHERE ID = %s"
                     cursor.execute(sql_estoque, (quantidade, id_equipamento))
 
@@ -368,7 +405,7 @@ def novo_emprestimo():
                         </script>
                     """
 
-        # Apenas colaboradores e equipamentos ATIVOS podem ser selecionados num novo empréstimo
+        # Se for GET, busca apenas colaboradores e equipamentos ativos para preencher os selects do formulário
         with conexao.cursor() as cursor:
             cursor.execute("SELECT * FROM Colaborador WHERE ativo = 1")
             colaboradores = cursor.fetchall()
@@ -380,6 +417,7 @@ def novo_emprestimo():
     finally:
         conexao.close()
 
+# Define a rota para finalizar um empréstimo
 @app.route('/emprestimos/finalizar/<int:id>', methods=['GET', 'POST'])
 def finalizar_emprestimo(id):
     conexao = conectar_banco()
@@ -389,14 +427,12 @@ def finalizar_emprestimo(id):
             observacao = request.form.get('observacao_devolucao', '')
 
             with conexao.cursor() as cursor:
-                # 1. Buscar os equipamentos e quantidades vinculados a este empréstimo
+                # Busca os itens vinculados ao empréstimo que está sendo encerrado
                 sql_itens = "SELECT idEquipamento, Quantidade FROM contem WHERE idEmprestimo = %s"
                 cursor.execute(sql_itens, (id,))
                 itens = cursor.fetchall()
                 
-                # 2. Gerenciar estoque: 
-                # Se for Devolvido ou Danificado, o item retorna fisicamente ao stock.
-                # Se for Perdido, o item extraviou, logo NÃO retorna ao stock.
+                # Lógica de devolução ao estoque: se foi devolvido ou danificado, o item retorna fisicamente ao estoque
                 for item in itens:
                     id_equipamento = item['idEquipamento']
                     quantidade = item['Quantidade']
@@ -405,7 +441,7 @@ def finalizar_emprestimo(id):
                         sql_devolve_estoque = "UPDATE Equipamento SET QTD_estoque = QTD_estoque + %s WHERE ID = %s"
                         cursor.execute(sql_devolve_estoque, (quantidade, id_equipamento))
 
-                # 3. Atualizar o empréstimo para encerrado (Situacao = 0), salvando data efetiva, status e observação
+                # Atualiza o registro do empréstimo para encerrado (Situacao = 0), registrando data efetiva e observações
                 sql_emp = """
                     UPDATE Emprestimo 
                     SET Situacao = 0, 
@@ -425,7 +461,7 @@ def finalizar_emprestimo(id):
                     </script>
                 """
 
-        # Se for GET, carrega os dados para a página de escolha de status
+        # Se for GET, carrega os dados básicos do empréstimo para a página de atualização
         with conexao.cursor() as cursor:
             sql_emp = """
                 SELECT e.ID, c.Nome AS Colaborador 
@@ -440,12 +476,13 @@ def finalizar_emprestimo(id):
     finally:
         conexao.close()
 
+# Define a rota para visualizar os detalhes completos de um empréstimo específico
 @app.route('/emprestimos/visualizar/<int:id>')
 def visualizar_emprestimo(id):
     conexao = conectar_banco()
     try:
         with conexao.cursor() as cursor:
-            # 1. Buscar dados completos do empréstimo, colaborador e datas
+            # Busca as informações gerais do empréstimo e do colaborador associado
             sql_emp = """
                 SELECT 
                     e.ID, 
@@ -465,7 +502,7 @@ def visualizar_emprestimo(id):
             cursor.execute(sql_emp, (id,))
             emprestimo = cursor.fetchone()
             
-            # 2. Buscar os equipamentos e quantidades associados a este empréstimo
+            # Busca todos os equipamentos vinculados a este empréstimo na tabela 'contem'
             sql_itens = """
                 SELECT eq.ID AS IdEquipamento, eq.Nome, co.Quantidade 
                 FROM contem co 
@@ -479,9 +516,10 @@ def visualizar_emprestimo(id):
     finally:
         conexao.close()
 
+# Define a rota para o painel de relatórios com suporte a filtros
 @app.route('/relatorios', methods=['GET'])
 def relatorios():
-    # Captura os filtros enviados via GET
+    # Captura os filtros informados
     filtro_colaborador = request.args.get('colaborador', '').strip()
     filtro_equipamento = request.args.get('equipamento', '').strip()
     filtro_status = request.args.get('status', '').strip()
@@ -489,7 +527,7 @@ def relatorios():
     conexao = conectar_banco()
     try:
         with conexao.cursor() as cursor:
-            # Query base unindo Emprestimo, Colaborador, a tabela intermediária contem e Equipamento
+            # Constrói a consulta SQL base cruzando todas as tabelas relevantes do sistema
             sql = """
                 SELECT 
                     e.ID, 
@@ -509,20 +547,22 @@ def relatorios():
             """
             parametros = []
 
-            # Aplicar filtro dinâmico combinando com AND se preenchido
+            # Adiciona dinamicamente a condição do filtro de colaborador caso tenha sido preenchido
             if filtro_colaborador:
                 sql += " AND c.Nome LIKE %s"
                 parametros.append(f"%{filtro_colaborador}%")
 
+            # Adiciona o filtro de equipamento se preenchido
             if filtro_equipamento:
                 sql += " AND eq.Nome LIKE %s"
                 parametros.append(f"%{filtro_equipamento}%")
 
+            # Adiciona o filtro de status se preenchido
             if filtro_status:
                 sql += " AND e.status = %s"
                 parametros.append(filtro_status)
 
-            # Ordenar dos mais recentes para os mais antigos
+            # Ordena os resultados trazendo os registros mais recentes primeiro
             sql += " ORDER BY e.Data DESC"
 
             cursor.execute(sql, tuple(parametros))

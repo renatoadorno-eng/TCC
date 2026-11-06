@@ -43,7 +43,7 @@
                             <input type="number" class="form-control" id="quantidade" name="quantidade" min="1" value="1" required>
                         </div>
 
-                        <!-- Data Prevista de Devolução (Envolta em uma div para ocultar se for Fornecido) -->
+                        <!-- Data Prevista de Devolução -->
                         <div class="mb-3" id="blocoDataPrevista">
                             <label for="data_prevista_devolucao" class="form-label">Data Prevista de Devolução</label>
                             <input type="datetime-local" class="form-control" id="data_prevista_devolucao" name="data_prevista_devolucao">
@@ -86,35 +86,42 @@
                 inputData.setAttribute('required', 'required');
             }
         }
+    function validarFormulario() {
+        // Captura os elementos do formulário referentes ao equipamento, quantidade e status
+        const selectEquip = document.getElementById('id_equipamento');
+        const qtdInput = document.getElementById('quantidade');
+        const statusSelect = document.getElementById('status').value;
+    
+        // Identifica qual opção de equipamento foi selecionada
+        const opcaoSelecionada = selectEquip.options[selectEquip.selectedIndex];
+    
+        //Lê o atributo personalizado 'data-estoque' do HTML e converte para número inteiro (padrão 0 se vazio)
+        const estoque = parseInt(opcaoSelecionada.getAttribute('data-estoque')) || 0;
+    
+        // Converte o valor digitado no campo de quantidade para número inteiro
+        const quantidade = parseInt(qtdInput.value) || 0;
 
-        function validarFormulario() {
-            const selectEquip = document.getElementById('id_equipamento');
-            const qtdInput = document.getElementById('quantidade');
-            const statusSelect = document.getElementById('status').value;
-            
-            const opcaoSelecionada = selectEquip.options[selectEquip.selectedIndex];
-            const estoque = parseInt(opcaoSelecionada.getAttribute('data-estoque')) || 0;
-            const quantidade = parseInt(qtdInput.value) || 0;
+        // Validação 1: Verifica se a quantidade solicitada é maior do que o estoque físico disponível
+        if (quantidade > estoque) {
+            // Exibe um alerta nativo informando o erro e interrompe o envio do formulário (retornando false)
+            alert(`Erro: Não é possível emprestar ${quantidade} unidade(s). O estoque disponível é de apenas ${estoque} unidade(s).`);
+            return false;
+    }
 
-            if (quantidade > estoque) {
-                alert(`Erro: Não é possível emprestar ${quantidade} unidade(s). O estoque disponível é de apenas ${estoque} unidade(s).`);
-                return false;
+        // Validação 2: Se o status for 'Emprestado', valida se a data prevista é no futuro
+        if (statusSelect === 'Emprestado') {
+            const dataPrevistaInput = document.getElementById('data_prevista_devolucao').value;
+            const dataPrevista = new Date(dataPrevistaInput);
+            const agora = new Date();
+
+            // Compara se a data informada é menor ou igual ao momento atual do sistema
+            if (dataPrevista <= agora) {
+                alert('Erro: A data prevista para devolução deve ser posterior à data e hora atuais.');
+                return false; // Interrompe o envio
             }
-
-            // Validar data apenas se o status for Emprestado
-            if (statusSelect === 'Emprestado') {
-                const dataPrevistaInput = document.getElementById('data_prevista_devolucao').value;
-                const dataPrevista = new Date(dataPrevistaInput);
-                const agora = new Date();
-
-                if (dataPrevista <= agora) {
-                    alert('Erro: A data prevista para devolução deve ser posterior à data e hora atuais.');
-                    return false;
-                }
-            }
-            
-            return true;
-        }
+        }   
+    return true;
+ }
     </script>
 </body>
 </html>
