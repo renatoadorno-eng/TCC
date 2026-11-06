@@ -33,16 +33,17 @@ Certifique-se de ter instalado:
 ```bash
 git clone https://github.com/renatoadorno-eng/TCC.git
 ````
-### 3. Configurar o ambiente virtual
-  ```
+### 2. Configurar o Ambiente Virtual (`venv`)
+No terminal (PowerShell / Bash):
+```powershell
 python -m venv venv
-  ```
-ativar o ambiente
+.\venv\Scripts\Activate.ps1
+```
+*(Nota: Se houver bloqueio de execução no PowerShell, execute `Set-ExecutionPolicy Unrestricted -Scope Process` antes de ativar).*
 
-### 4. Instalar dependências
-```
-pip install flask pymysql
-```
+### 3. Instalar as Dependências
+```bash
+pip install flask pymysql werkzeug
 ### 5. Criar base de dados a partir do modelo db.sql
 
 ### 6. Executar aplicação
