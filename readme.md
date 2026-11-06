@@ -63,4 +63,4 @@ senha: 123456
 ```bash
 python app.py
 ```
-  
+Acesse http://127.0.0.1:5000/login no seu navegador.
