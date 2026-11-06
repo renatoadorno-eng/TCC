@@ -44,10 +44,23 @@ python -m venv venv
 ### 3. Instalar as Dependências
 ```bash
 pip install flask pymysql werkzeug
-### 5. Criar base de dados a partir do modelo db.sql
-
-### 6. Executar aplicação
 ```
-python3 app.py
+
+### 4. Inicializar o Banco de Dados Local
+1. Abra o **MySQL Workbench** e conecte-se ao seu servidor local (`localhost:3306`).
+2. Abra o arquivo `db.sql` incluído no projeto.
+3. Execute o script para criar a base `sistema_epi` e suas tabelas.
+
+### 5. Cadastrar o Usuário Inicial
+Execute o script **cadastrar_tec.py** presente na pasta para criar o primeiro usuário de acesso:
+```bash
+python cadastrar_tec.py
+```
+usuário: tecnico@empresa.com  
+senha: 123456
+
+### 6. Iniciar a Aplicação
+```bash
+python app.py
 ```
   
